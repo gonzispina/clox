@@ -2,8 +2,8 @@
 // Created by gonzalo on 3/11/21.
 //
 
-#ifndef clox_memory_h
-#define clox_memory_h
+#ifndef CLOX_MEMMORY_H
+#define CLOX_MEMMORY_H
 
 #include "common.h"
 
