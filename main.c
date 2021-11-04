@@ -1,6 +1,6 @@
-#include "common.h"
-#include "chunk.h"
-#include "debug.h"
+#include "modules/common.h"
+#include "modules/chunk.h"
+#include "modules/debug.h"
 
 int main(int argc, const char* argv[]) {
     Chunk chunk;
