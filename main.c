@@ -4,8 +4,8 @@
 #include "modules/vm.h"
 
 int main(int argc, const char* argv[]) {
-    initVM();
-    
+    VM vm = initVM();
+
     Chunk chunk;
     initChunk(&chunk);
     writeChunk(&chunk, OP_RETURN, 123);
@@ -15,7 +15,9 @@ int main(int argc, const char* argv[]) {
     writeChunk(&chunk, index, 123);
 
     disassembleChunk(&chunk, "test chunk");
-    freeVM();
+    interpret(&vm, &chunk);
+
+    freeVM(&vm);
     freeChunk(&chunk);
     return 0;
 }
