@@ -9,42 +9,42 @@
 #include "vm.h"
 #include "value.h"
 
-static void resetStack(Stack* stack) {
-    stack->top = stack->values;
+VM vm;
+
+static void resetStack() {
+    vm.stackTop = vm.stack;
 }
 
-void push(Stack *stack, Value value) {
-    *stack->top = value;
-    stack->top++;
+void push(Value value) {
+    *(vm.stackTop) = value;
+    vm.stackTop += 1;
 }
 
-Value pop(Stack *stack) {
-    stack->top--;
-    return *stack->top;
+Value pop() {
+    vm.stackTop -= 1;
+    return *(vm.stackTop);
 }
 
-VM initVM() {
-    VM vm;
-    resetStack(&vm.stack);
-    return vm;
+void initVM() {
+    resetStack();
 }
 
-void freeVM(VM* vm) {
+void freeVM() {
 
 }
 
 
-static uint8_t READ_BYTE(VM* vm) {
-    return *vm->ip++;
+static uint8_t READ_BYTE() {
+    return *vm.ip++;
 }
 
-static Value READ_CONSTANT(VM* vm) {
-    return vm->chunk->constants.values[READ_BYTE(vm)];
+static Value READ_CONSTANT() {
+    return vm.chunk->constants.values[READ_BYTE()];
 }
 
-static void printStack(Stack* stack) {
+static void printStack() {
     printf("          ");
-    for (Value* slot = stack->values; slot < stack->top; slot++) {
+    for (Value* slot = vm.stack; slot < vm.stackTop; slot++) {
         printf("[ ");
         printValue(*slot);
         printf(" ]");
@@ -52,33 +52,37 @@ static void printStack(Stack* stack) {
     printf("\n");
 }
 
-static InterpretResult run(VM* vm) {
+static InterpretResult run() {
     for (;;) {
 #ifdef DEBUG_TRACE_EXECUTION
-    printStack(&vm->stack);
-    disassembleInstruction(vm->chunk, (int)(vm->ip - vm->chunk->code));
+    printStack();
+    disassembleInstruction(vm.chunk, (int)(vm.ip - vm.chunk->code));
 #endif
         uint8_t instruction;
         switch (instruction = READ_BYTE(vm)) {
             case OP_CONSTANT: {
                 Value constant = READ_CONSTANT(vm);
-                push(&vm->stack, constant);
+                push(constant);
                 printValue(constant);
                 printf("\n");
                 break;
             }
+            case OP_NEGATE: {
+                push(-pop());
+                break;
+            }
             case OP_RETURN: {
-                printValue(pop(&vm->stack));
+                printValue(pop());
                 return INTERPRET_OK;
             }
         }
     }
 }
 
-InterpretResult interpret(VM* vm, Chunk* chunk) {
-    vm->chunk = chunk;
-    vm->ip = chunk->code;
-    return run(vm);
+InterpretResult interpret(Chunk* chunk) {
+    vm.chunk = chunk;
+    vm.ip = chunk->code;
+    return run();
 }
 
 

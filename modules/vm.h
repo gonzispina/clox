@@ -11,19 +11,16 @@
 #define STACK_MAX 256
 
 typedef struct {
-    Value values[STACK_MAX];
-    Value* top;
-} Stack;
-
-void push(Stack* stack, Value value);
-
-Value pop(Stack* stack);
-
-typedef struct {
     Chunk* chunk;
     uint8_t* ip; // Instruction pointer
-    Stack stack;
+    Value stack[STACK_MAX];
+    Value* stackTop;
 } VM;
+
+void push(Value value);
+
+Value pop();
+
 
 typedef enum {
     INTERPRET_OK,
@@ -31,8 +28,9 @@ typedef enum {
     INTERPRET_RUNTIME_ERROR,
 } InterpretResult;
 
-VM initVM();
-void freeVM(VM* vm);
-InterpretResult interpret(VM* vm, Chunk* chunk);
+void initVM();
+void freeVM();
+
+InterpretResult interpret(Chunk* chunk);
 
 #endif //CLOX_VM_H
