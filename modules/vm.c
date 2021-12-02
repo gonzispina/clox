@@ -3,48 +3,52 @@
 //
 
 #include <stdio.h>
+#include <stdlib.h>
 
 #include "common.h"
 #include "debug.h"
 #include "vm.h"
 #include "value.h"
 
-VM vm;
-
-static void resetStack() {
-    vm.stackTop = vm.stack;
+static void resetStack(Stack* stack) {
+    stack->top = stack->values;
 }
 
-void push(Value value) {
-    *(vm.stackTop) = value;
-    vm.stackTop += 1;
+void push(Stack* stack, Value value) {
+    *(stack->top) = value;
+    stack->top++;
 }
 
-Value pop() {
-    vm.stackTop -= 1;
-    return *(vm.stackTop);
+Value pop(Stack* stack) {
+    stack->top--;
+    return *(stack->top);
 }
 
-void initVM() {
-    resetStack();
+VM* initVM() {
+    VM* vm = (VM*)malloc(sizeof(VM));
+    if (vm == NULL) {
+        exit(1);
+    }
+
+    resetStack(&vm->stack);
+    return vm;
 }
 
-void freeVM() {
-
+void freeVM(VM* vm) {
+    free(vm);
 }
 
-
-static uint8_t READ_BYTE() {
-    return *vm.ip++;
+static uint8_t READ_BYTE(VM* vm) {
+    return *vm->ip++;
 }
 
-static Value READ_CONSTANT() {
-    return vm.chunk->constants.values[READ_BYTE()];
+static Value READ_CONSTANT(VM* vm) {
+    return vm->chunk->constants.values[READ_BYTE(vm)];
 }
 
-static void printStack() {
+static void printStack(Stack* stack) {
     printf("          ");
-    for (Value* slot = vm.stack; slot < vm.stackTop; slot++) {
+    for (Value* slot = stack->top; slot < stack->top; slot++) {
         printf("[ ");
         printValue(*slot);
         printf(" ]");
@@ -52,37 +56,57 @@ static void printStack() {
     printf("\n");
 }
 
-static InterpretResult run() {
+static InterpretResult run(VM* vm) {
     for (;;) {
 #ifdef DEBUG_TRACE_EXECUTION
-    printStack();
-    disassembleInstruction(vm.chunk, (int)(vm.ip - vm.chunk->code));
+    printStack(&vm->stack);
+    disassembleInstruction(vm->chunk, (int)(vm->ip - vm->chunk->code));
 #endif
         uint8_t instruction;
         switch (instruction = READ_BYTE(vm)) {
             case OP_CONSTANT: {
                 Value constant = READ_CONSTANT(vm);
-                push(constant);
+                push(&vm->stack, constant);
                 printValue(constant);
                 printf("\n");
                 break;
             }
-            case OP_NEGATE: {
-                push(-pop());
+            case OP_ADD: {
+                double b = pop(&vm->stack);
+                double a = pop(&vm->stack);
+                push(&vm->stack, a+b);
                 break;
             }
+            case OP_SUBTRACT: {
+                double b = pop(&vm->stack);
+                double a = pop(&vm->stack);
+                push(&vm->stack, a-b);
+                break;
+            }
+            case OP_MULTIPLY: {
+                double b = pop(&vm->stack);
+                double a = pop(&vm->stack);
+                push(&vm->stack, a*b);
+                break;
+            }
+            case OP_DIVIDE: {
+                double b = pop(&vm->stack);
+                double a = pop(&vm->stack);
+                push(&vm->stack, a/b);
+                break;
+            }
+            case OP_NEGATE: push(&vm->stack, -pop(&vm->stack)); break;
             case OP_RETURN: {
-                printValue(pop());
+                printValue(pop(&vm->stack));
                 return INTERPRET_OK;
             }
         }
     }
 }
 
-InterpretResult interpret(Chunk* chunk) {
-    vm.chunk = chunk;
-    vm.ip = chunk->code;
-    return run();
+InterpretResult interpret(VM* vm, const char* source) {
+    compile(source);
+    return run(vm);
 }
 
 

@@ -5,22 +5,26 @@
 #ifndef CLOX_VM_H
 #define CLOX_VM_H
 
+#include "common.h"
 #include "chunk.h"
 #include "value.h"
 
 #define STACK_MAX 256
 
 typedef struct {
+    Value values[STACK_MAX];
+    Value* top;
+} Stack;
+
+typedef struct VM {
     Chunk* chunk;
     uint8_t* ip; // Instruction pointer
-    Value stack[STACK_MAX];
-    Value* stackTop;
+    Stack stack;
 } VM;
 
-void push(Value value);
+void push(Stack* stack, Value value);
 
-Value pop();
-
+Value pop(Stack* stack);
 
 typedef enum {
     INTERPRET_OK,
@@ -28,9 +32,9 @@ typedef enum {
     INTERPRET_RUNTIME_ERROR,
 } InterpretResult;
 
-void initVM();
-void freeVM();
+VM* initVM();
+void freeVM(VM*);
 
-InterpretResult interpret(Chunk* chunk);
+InterpretResult interpret(VM* vm, const char* source);
 
 #endif //CLOX_VM_H
