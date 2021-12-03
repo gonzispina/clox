@@ -85,6 +85,10 @@ static void skipWhitespace(Scanner* s) {
     }
 }
 
+static bool isAlpha(char c) {
+    return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_';
+}
+
 static Token string(Scanner* s) {
     while (peek(s) != '"' && !isAtEnd(s)) {
         if (peek(s) == '\n') s->line++;
@@ -97,7 +101,7 @@ static Token string(Scanner* s) {
     return makeToken(s,TOKEN_STRING);
 }
 
-static bool isDigit(c) {
+static bool isDigit(char c) {
     return c >= '0' && c <= '9';
 }
 
@@ -113,6 +117,59 @@ static Token number(Scanner* s) {
     return makeToken(s, TOKEN_NUMBER);
 }
 
+static TokenType checkKeyword(Scanner* s, int pos, int length, const char* lexeme, TokenType type) {
+    while (s->current[pos] == lexeme[pos]) {
+        advance(s);
+        pos++;
+
+        if (pos > length) {
+            return type;
+        }
+    }
+
+    return TOKEN_IDENTIFIER;
+}
+
+static TokenType identifierType(Scanner* s) {
+    switch (s->start[0]) {
+        case 'a': return checkKeyword(s, 1, 2, "nd", TOKEN_AND);
+        case 'c': return checkKeyword(s, 1, 4, "lass", TOKEN_CLASS);
+        case 'e': return checkKeyword(s, 1, 3, "lse", TOKEN_ELSE);
+        case 'f':
+            if (s->current - s->start > 1) {
+                switch (s->start[1]) {
+                    case 'a': return checkKeyword(s, 2, 3, "lse", TOKEN_FALSE);
+                    case 'o': return checkKeyword(s, 2, 1, "r", TOKEN_FOR);
+                    case 'u': return checkKeyword(s, 2, 1, "n", TOKEN_FUN);
+                }
+            }
+            break;
+        case 'i': return checkKeyword(s, 1, 1, "f", TOKEN_IF);
+        case 'n': return checkKeyword(s, 1, 2, "il", TOKEN_NIL);
+        case 'o': return checkKeyword(s, 1, 1, "r", TOKEN_OR);
+        case 'p': return checkKeyword(s, 1, 4, "rint", TOKEN_PRINT);
+        case 'r': return checkKeyword(s, 1, 5, "eturn", TOKEN_RETURN);
+        case 's': return checkKeyword(s, 1, 4, "uper", TOKEN_SUPER);
+        case 't':
+            if (s->current - s->start > 1) {
+                switch (s->start[1]) {
+                    case 'h': return checkKeyword(s, 2, 2, "is", TOKEN_THIS);
+                    case 'r': return checkKeyword(s, 2, 2, "ue", TOKEN_TRUE);
+                }
+            }
+            break;
+        case 'v': return checkKeyword(s, 1, 2, "ar", TOKEN_VAR);
+        case 'w': return checkKeyword(s, 1, 4, "hile", TOKEN_WHILE);
+    }
+
+    return TOKEN_IDENTIFIER;
+}
+
+static Token identifier(Scanner* s) {
+    while (isAlpha(peek(s)) || isDigit(peek(s))) advance(s);
+    return makeToken(s, identifierType(s));
+}
+
 Token scanToken(Scanner *s) {
     skipWhitespace(s);
 
@@ -121,6 +178,7 @@ Token scanToken(Scanner *s) {
     if (isAtEnd(s)) return makeToken(s, TOKEN_EOF);
 
     char c = advance(s);
+    if (isAlpha(c)) return identifier(s);
     if (isDigit(c)) return number(s);
 
     switch (c) {
