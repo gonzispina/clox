@@ -30,7 +30,6 @@ typedef enum {
 typedef struct {
     const char* start;
     const char* current;
-    int column;
     int line;
 } Scanner;
 
@@ -41,9 +40,10 @@ typedef struct {
     const char* start;
     int length;
     int line;
-    int column;
 } Token;
 
 Token scanToken(Scanner* s);
+
+
 
 #endif //CLOX_SCANNER_H

@@ -9,6 +9,7 @@
 #include "debug.h"
 #include "vm.h"
 #include "value.h"
+#include "compiler.h"
 
 static void resetStack(Stack* stack) {
     stack->top = stack->values;
@@ -105,8 +106,21 @@ static InterpretResult run(VM* vm) {
 }
 
 InterpretResult interpret(VM* vm, const char* source) {
-    compile(source);
-    return run(vm);
+    Chunk chunk;
+    initChunk(&chunk);
+
+    if (!compile(source, &chunk)) {
+        freeChunk(&chunk);
+        return INTERPRET_COMPILE_ERROR;
+    }
+
+    vm->chunk = &chunk;
+    vm->ip = vm->chunk->code;
+
+    InterpretResult res = run(vm);
+    freeChunk(&chunk);
+
+    return res;
 }
 
 

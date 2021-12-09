@@ -4,6 +4,7 @@
 
 #include <stdlib.h>
 #include <stdbool.h>
+#include <string.h>
 
 #include "scanner.h"
 
@@ -28,7 +29,6 @@ static Token makeToken(Scanner* s, TokenType t) {
     Token token;
     token.type = t;
     token.line = s->line;
-    token.column = s->column;
     token.start = s->start;
     token.length = (int)(s->current - s->start);
     return token;
@@ -38,14 +38,12 @@ static Token errorToken(Scanner* s, const char* msg) {
     Token token;
     token.type = TOKEN_ERROR;
     token.line = s->line;
-    token.column = s->column;
     token.start = s->start;
     return token;
 }
 
 static char advance(Scanner* s) {
     s->current++;
-    s->column++;
     return s->current[-1];
 }
 
@@ -117,14 +115,9 @@ static Token number(Scanner* s) {
     return makeToken(s, TOKEN_NUMBER);
 }
 
-static TokenType checkKeyword(Scanner* s, int pos, int length, const char* lexeme, TokenType type) {
-    while (s->current[pos] == lexeme[pos]) {
-        advance(s);
-        pos++;
-
-        if (pos > length) {
-            return type;
-        }
+static TokenType checkKeyword(Scanner* s, int start, int length, const char* rest, TokenType type) {
+    if (s->current - s->start == start + length && memcmp(s->start + start, rest, length) == 0) {
+        return type;
     }
 
     return TOKEN_IDENTIFIER;
