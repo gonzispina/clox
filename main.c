@@ -12,12 +12,11 @@ static void repl(VM* vm) {
 
     for (;;) {
         printf("> ");
-
         if (!fgets(line, sizeof(line), stdin)) {
             printf("\n");
             break;
         }
-
+        line[strlen(line)-1] = '\0';
         interpret(vm, line);
     }
 }

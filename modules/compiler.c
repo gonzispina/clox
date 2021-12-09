@@ -8,6 +8,10 @@
 #include "compiler.h"
 #include "scanner.h"
 
+#ifdef DEBUG_PRINT_CODE
+#include "debug.h"
+#endif
+
 Chunk* compilingChunk;
 Scanner* s;
 
@@ -96,6 +100,11 @@ static void emitConstant(Parser* p, Value v) {
 
 static void endCompiler(Parser* p) {
     emitByte(p, OP_RETURN);
+#ifdef DEBUG_PRINT_CODE
+    if (!p->hadError) {
+        disassembleChunk(currentChunk(), "code");
+    }
+#endif
 }
 
 static void binary(Parser* p) {
