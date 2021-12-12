@@ -29,7 +29,7 @@ static void errorAt(Parser* p, Token* token, const char* message) {
     if (p->panicMode) return;
     p->panicMode = true;
 
-    fprintf(stderr, "[line %d] Error", token->line);
+    fprintf(stderr, "\n[line %d] Error", token->line);
 
     if (token->type == TOKEN_EOF) {
         fprintf(stderr, " at end");
@@ -122,9 +122,8 @@ static void unary(Parser* p) {
 
     parsePrecedence(p, PREC_UNARY);
 
-    if (operatorType == TOKEN_MINUS) {
-        emitByte(p, OP_NEGATE);
-    }
+    if (operatorType == TOKEN_MINUS)     emitByte(p, OP_NEGATE);
+    else if (operatorType == TOKEN_BANG) emitByte(p, OP_NOT);
 }
 
 static void binary(Parser* p) {
@@ -137,6 +136,12 @@ static void binary(Parser* p) {
         case TOKEN_MINUS: emitByte(p, OP_SUBTRACT); break;
         case TOKEN_STAR: emitByte(p, OP_MULTIPLY); break;
         case TOKEN_SLASH: emitByte(p, OP_DIVIDE); break;
+        case TOKEN_EQUAL_EQUAL: emitByte(p, OP_EQUAL); break;
+        case TOKEN_BANG_EQUAL: emitByte(p,OP_EQUAL); emitByte(p,OP_NOT); break;
+        case TOKEN_GREATER: emitByte(p, OP_GREATER); break;
+        case TOKEN_GREATER_EQUAL: emitByte(p,OP_LESSER); emitByte(p,OP_NOT); break;
+        case TOKEN_LESS: emitByte(p, OP_LESSER); break;
+        case TOKEN_LESS_EQUAL: emitByte(p,OP_GREATER); emitByte(p,OP_NOT); break;
         default: return; // Unreachable
     }
 }
@@ -162,14 +167,14 @@ ParseRule rules[] = {
         [TOKEN_SEMICOLON]     = {NULL,     NULL,   PREC_NONE},
         [TOKEN_SLASH]         = {NULL,     binary, PREC_FACTOR},
         [TOKEN_STAR]          = {NULL,     binary, PREC_FACTOR},
-        [TOKEN_BANG]          = {NULL,     NULL,   PREC_NONE},
-        [TOKEN_BANG_EQUAL]    = {NULL,     NULL,   PREC_NONE},
+        [TOKEN_BANG]          = {unary,     NULL,   PREC_NONE},
+        [TOKEN_BANG_EQUAL]    = {NULL,     binary,   PREC_EQUALITY},
         [TOKEN_EQUAL]         = {NULL,     NULL,   PREC_NONE},
-        [TOKEN_EQUAL_EQUAL]   = {NULL,     NULL,   PREC_NONE},
-        [TOKEN_GREATER]       = {NULL,     NULL,   PREC_NONE},
-        [TOKEN_GREATER_EQUAL] = {NULL,     NULL,   PREC_NONE},
-        [TOKEN_LESS]          = {NULL,     NULL,   PREC_NONE},
-        [TOKEN_LESS_EQUAL]    = {NULL,     NULL,   PREC_NONE},
+        [TOKEN_EQUAL_EQUAL]   = {NULL,     binary,   PREC_EQUALITY},
+        [TOKEN_GREATER]       = {NULL,     binary,   PREC_COMPARISON},
+        [TOKEN_GREATER_EQUAL] = {NULL,     binary,   PREC_COMPARISON},
+        [TOKEN_LESS]          = {NULL,     binary,   PREC_COMPARISON},
+        [TOKEN_LESS_EQUAL]    = {NULL,     binary,   PREC_COMPARISON},
         [TOKEN_IDENTIFIER]    = {NULL,     NULL,   PREC_NONE},
         [TOKEN_STRING]        = {NULL,     NULL,   PREC_NONE},
         [TOKEN_NUMBER]        = {number,   NULL,   PREC_NONE},

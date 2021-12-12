@@ -30,6 +30,11 @@ Value peek(Stack* stack, int distance) {
     return *(stack->top - distance);
 }
 
+static bool isFalsy(Value v) {
+    return IS_NIL(v) || (IS_BOOL(v) && !AS_BOOL(v));
+}
+
+
 static void runtimeError(VM* vm, const char* format, ...) {
     va_list args;
     va_start(args, format);
@@ -83,7 +88,38 @@ static bool validateNumbers(VM* vm, Value a, Value b) {
     return true;
 }
 
+static bool validateEqualType(VM* vm, Value a, Value b) {
+    return a.type == b.type;
+}
+
 typedef void (*BinaryFn)(VM* vm, Value a, Value b);
+
+static void equalOp(VM* vm, Value a, Value b) {
+    switch (a.type) {
+        case VAL_BOOL:   push(&vm->stack, BOOL_VAL(AS_BOOL(a) == AS_BOOL(b))); break;
+        case VAL_NIL:    push(&vm->stack, BOOL_VAL(true)); break;
+        case VAL_NUMBER: push(&vm->stack, BOOL_VAL(AS_NUMBER(a) == AS_NUMBER(b))); break;
+        default:         false; // Unreachable.
+    }
+}
+
+static void greaterOp(VM* vm, Value a, Value b) {
+    switch (a.type) {
+        case VAL_BOOL:   push(&vm->stack, BOOL_VAL(AS_BOOL(a) > AS_BOOL(b))); break;
+        case VAL_NIL:    push(&vm->stack, BOOL_VAL(false)); break;
+        case VAL_NUMBER: push(&vm->stack, BOOL_VAL(AS_NUMBER(a) > AS_NUMBER(b))); break;
+        default:         false; // Unreachable.
+    }
+}
+
+static void lesserOp(VM* vm, Value a, Value b) {
+    switch (a.type) {
+        case VAL_BOOL:   push(&vm->stack, BOOL_VAL(AS_BOOL(a) < AS_BOOL(b))); break;
+        case VAL_NIL:    push(&vm->stack, BOOL_VAL(false)); break;
+        case VAL_NUMBER: push(&vm->stack, BOOL_VAL(AS_NUMBER(a) < AS_NUMBER(b))); break;
+        default:         false; // Unreachable.
+    }
+}
 
 static void sumOp(VM* vm, Value a, Value b) {
     push(&vm->stack, NUMBER_VAL(AS_NUMBER(a)+AS_NUMBER(b)));
@@ -100,11 +136,11 @@ static void multiplyOp(VM* vm, Value a, Value b) {
 static void divideOp(VM* vm, Value a, Value b) {
     push(&vm->stack, NUMBER_VAL(AS_NUMBER(a)/AS_NUMBER(b)));
 }
-
 static bool binaryOp(VM* vm, ValueType type, BinaryFn op) {
     Value b = pop(&vm->stack);
     Value a = pop(&vm->stack);
     if (type == VAL_NUMBER && !validateNumbers(vm, a, b)) return false;
+    if (type == VAL_BOOL && !validateEqualType(vm, a, b)) return false;
     op(vm, a, b);
     return true;
 }
@@ -127,10 +163,14 @@ static InterpretResult run(VM* vm) {
             case OP_NIL: push(&vm->stack, NIL_VAL); break;
             case OP_TRUE: push(&vm->stack, BOOL_VAL(true)); break;
             case OP_FALSE: push(&vm->stack, BOOL_VAL(false)); break;
+            case OP_EQUAL: if (!binaryOp(vm, VAL_BOOL, equalOp)) return INTERPRET_RUNTIME_ERROR; break;
+            case OP_GREATER: if (!binaryOp(vm, VAL_BOOL, greaterOp)) return INTERPRET_RUNTIME_ERROR; break;
+            case OP_LESSER: if (!binaryOp(vm, VAL_BOOL, lesserOp)) return INTERPRET_RUNTIME_ERROR; break;
             case OP_ADD: if (!binaryOp(vm, VAL_NUMBER, sumOp)) return INTERPRET_RUNTIME_ERROR; break;
             case OP_SUBTRACT: if (!binaryOp(vm, VAL_NUMBER, substractOp)) return INTERPRET_RUNTIME_ERROR; break;
             case OP_MULTIPLY: if (!binaryOp(vm, VAL_NUMBER, multiplyOp)) return INTERPRET_RUNTIME_ERROR; break;
             case OP_DIVIDE: if (!binaryOp(vm, VAL_NUMBER, divideOp)) return INTERPRET_RUNTIME_ERROR; break;
+            case OP_NOT: push(&vm->stack, BOOL_VAL(isFalsy(pop(&vm->stack)))); break;
             case OP_NEGATE: {
                 if (!IS_NUMBER(peek(&vm->stack, 0))) {
                     runtimeError(vm, "Operand must be a number.");
