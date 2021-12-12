@@ -183,11 +183,10 @@ static InterpretResult run(VM* vm) {
                     ObjString* strA = AS_STRING(a);
                     ObjString* strB =  AS_STRING(b);
 
-                    int length = strA->length + strB->length + 1;
+                    int length = strA->length + strB->length;
                     char* concat = (char*)malloc(length);
                     memcpy(concat, strA->chars, strA->length);
                     memcpy(concat+strA->length, strB->chars, strB->length);
-                    concat[length] = '\0';
 
                     push(&vm->stack, OBJ_VAL(allocateString(&vm->objects, concat, length)));
                 } else if (IS_NUMBER(a) && IS_NUMBER(b)) {
