@@ -8,6 +8,7 @@
 #include "common.h"
 #include "chunk.h"
 #include "value.h"
+#include "object.h"
 
 #define STACK_MAX 256
 
@@ -20,6 +21,7 @@ typedef struct VM {
     Chunk* chunk;
     uint8_t* ip; // Instruction pointer
     Stack stack;
+    Obj* objects;
 } VM;
 
 void push(Stack* stack, Value value);

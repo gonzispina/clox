@@ -17,6 +17,10 @@ static void repl(VM* vm) {
             break;
         }
         line[strlen(line)-1] = '\0';
+        if (strcmp(line, "exit") == 0) {
+            break;
+        }
+
         interpret(vm, line);
     }
 }

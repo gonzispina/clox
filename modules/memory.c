@@ -18,3 +18,22 @@ void* reallocate(void* pointer, size_t oldSize, size_t newSize) {
     return res;
 }
 
+static void freeObject(Obj* object) {
+    switch (object->type) {
+        case OBJ_STRING: {
+            ObjString* string = (ObjString*)object;
+            FREE_ARRAY(char, string->chars, string->length + 1);
+            free(object);
+            break;
+        }
+    }
+}
+
+void freeObjects(Obj* object) {
+    while (object != NULL) {
+        Obj* next = object->next;
+        freeObject(object);
+        object = next;
+    }
+}
+

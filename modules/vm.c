@@ -5,7 +5,10 @@
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
+#include "object.h"
+#include "memory.h"
 #include "common.h"
 #include "debug.h"
 #include "vm.h"
@@ -28,6 +31,10 @@ Value pop(Stack* stack) {
 
 Value peek(Stack* stack, int distance) {
     return *(stack->top - distance);
+}
+
+static void freeStack(Stack stack) {
+
 }
 
 static bool isFalsy(Value v) {
@@ -55,10 +62,12 @@ VM* initVM() {
     }
 
     resetStack(&vm->stack);
+    vm->objects = NULL;
     return vm;
 }
 
 void freeVM(VM* vm) {
+    freeObjects(vm->objects);
     free(vm);
 }
 
@@ -99,6 +108,11 @@ static void equalOp(VM* vm, Value a, Value b) {
         case VAL_BOOL:   push(&vm->stack, BOOL_VAL(AS_BOOL(a) == AS_BOOL(b))); break;
         case VAL_NIL:    push(&vm->stack, BOOL_VAL(true)); break;
         case VAL_NUMBER: push(&vm->stack, BOOL_VAL(AS_NUMBER(a) == AS_NUMBER(b))); break;
+        case VAL_OBJ: {
+            ObjString* strA = AS_STRING(a);
+            ObjString* strB = AS_STRING(b);
+            push(&vm->stack, BOOL_VAL(strA->length == strB->length && memcmp(strA->chars, strB->chars, strA->length) == 0));
+        }
         default:         false; // Unreachable.
     }
 }
@@ -119,10 +133,6 @@ static void lesserOp(VM* vm, Value a, Value b) {
         case VAL_NUMBER: push(&vm->stack, BOOL_VAL(AS_NUMBER(a) < AS_NUMBER(b))); break;
         default:         false; // Unreachable.
     }
-}
-
-static void sumOp(VM* vm, Value a, Value b) {
-    push(&vm->stack, NUMBER_VAL(AS_NUMBER(a)+AS_NUMBER(b)));
 }
 
 static void substractOp(VM* vm, Value a, Value b) {
@@ -166,7 +176,28 @@ static InterpretResult run(VM* vm) {
             case OP_EQUAL: if (!binaryOp(vm, VAL_BOOL, equalOp)) return INTERPRET_RUNTIME_ERROR; break;
             case OP_GREATER: if (!binaryOp(vm, VAL_BOOL, greaterOp)) return INTERPRET_RUNTIME_ERROR; break;
             case OP_LESSER: if (!binaryOp(vm, VAL_BOOL, lesserOp)) return INTERPRET_RUNTIME_ERROR; break;
-            case OP_ADD: if (!binaryOp(vm, VAL_NUMBER, sumOp)) return INTERPRET_RUNTIME_ERROR; break;
+            case OP_ADD: {
+                Value b = pop(&vm->stack);
+                Value a = pop(&vm->stack);
+                if (IS_STRING(a) && IS_STRING(b)) {
+                    ObjString* strA = AS_STRING(a);
+                    ObjString* strB =  AS_STRING(b);
+
+                    int length = strA->length + strB->length + 1;
+                    char* concat = (char*)malloc(length);
+                    memcpy(concat, strA->chars, strA->length);
+                    memcpy(concat+strA->length, strB->chars, strB->length);
+                    concat[length] = '\0';
+
+                    push(&vm->stack, OBJ_VAL(allocateString(&vm->objects, concat, length)));
+                } else if (IS_NUMBER(a) && IS_NUMBER(b)) {
+                    push(&vm->stack, NUMBER_VAL(AS_NUMBER(a)+AS_NUMBER(b)));
+                } else {
+                    runtimeError(vm, "Operands must be two numbers or two strings.");
+                    return INTERPRET_RUNTIME_ERROR;
+                }
+                break;
+            }
             case OP_SUBTRACT: if (!binaryOp(vm, VAL_NUMBER, substractOp)) return INTERPRET_RUNTIME_ERROR; break;
             case OP_MULTIPLY: if (!binaryOp(vm, VAL_NUMBER, multiplyOp)) return INTERPRET_RUNTIME_ERROR; break;
             case OP_DIVIDE: if (!binaryOp(vm, VAL_NUMBER, divideOp)) return INTERPRET_RUNTIME_ERROR; break;
