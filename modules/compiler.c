@@ -107,20 +107,6 @@ static void endCompiler(Parser* p) {
 #endif
 }
 
-static void binary(Parser* p) {
-    TokenType operatorType = p->previous.type;
-    ParseRule* rule = getRule(operatorType);
-    parsePrecedence(p, (Precedence)rule->precedence + 1);
-
-    switch (operatorType) {
-        case TOKEN_PLUS: emitByte(p, OP_ADD); break;
-        case TOKEN_MINUS: emitByte(p, OP_SUBTRACT); break;
-        case TOKEN_STAR: emitByte(p, OP_MULTIPLY); break;
-        case TOKEN_SLASH: emitByte(p, OP_DIVIDE); break;
-        default: return;
-    }
-}
-
 static void grouping(Parser* p) {
     expression(p);
     consume(p, TOKEN_RIGHT_PAREN, "Expect ')' after expression.");
@@ -128,7 +114,7 @@ static void grouping(Parser* p) {
 
 static void number(Parser* p) {
     double value = strtod(p->previous.start, NULL);
-    emitConstant(p, value);
+    emitConstant(p, NUMBER_VAL(value));
 }
 
 static void unary(Parser* p) {
@@ -139,6 +125,29 @@ static void unary(Parser* p) {
     if (operatorType == TOKEN_MINUS) {
         emitByte(p, OP_NEGATE);
     }
+}
+
+static void binary(Parser* p) {
+    TokenType operatorType = p->previous.type;
+    ParseRule* rule = getRule(operatorType);
+    parsePrecedence(p, (Precedence)rule->precedence + 1);
+
+    switch (operatorType) {
+        case TOKEN_PLUS: emitByte(p, OP_ADD); break;
+        case TOKEN_MINUS: emitByte(p, OP_SUBTRACT); break;
+        case TOKEN_STAR: emitByte(p, OP_MULTIPLY); break;
+        case TOKEN_SLASH: emitByte(p, OP_DIVIDE); break;
+        default: return; // Unreachable
+    }
+}
+
+static void literal(Parser* p) {
+    switch (p->previous.type) {
+        case TOKEN_TRUE: emitByte(p, OP_TRUE); break;
+        case TOKEN_FALSE: emitByte(p, OP_FALSE); break;
+        case TOKEN_NIL: emitByte(p, OP_NIL); break;
+        default: return; // Unreachable
+    };
 }
 
 ParseRule rules[] = {
@@ -167,17 +176,17 @@ ParseRule rules[] = {
         [TOKEN_AND]           = {NULL,     NULL,   PREC_NONE},
         [TOKEN_CLASS]         = {NULL,     NULL,   PREC_NONE},
         [TOKEN_ELSE]          = {NULL,     NULL,   PREC_NONE},
-        [TOKEN_FALSE]         = {NULL,     NULL,   PREC_NONE},
+        [TOKEN_FALSE]         = {literal,  NULL,   PREC_NONE},
         [TOKEN_FOR]           = {NULL,     NULL,   PREC_NONE},
         [TOKEN_FUN]           = {NULL,     NULL,   PREC_NONE},
         [TOKEN_IF]            = {NULL,     NULL,   PREC_NONE},
-        [TOKEN_NIL]           = {NULL,     NULL,   PREC_NONE},
+        [TOKEN_NIL]           = {literal,  NULL,   PREC_NONE},
         [TOKEN_OR]            = {NULL,     NULL,   PREC_NONE},
         [TOKEN_PRINT]         = {NULL,     NULL,   PREC_NONE},
         [TOKEN_RETURN]        = {NULL,     NULL,   PREC_NONE},
         [TOKEN_SUPER]         = {NULL,     NULL,   PREC_NONE},
         [TOKEN_THIS]          = {NULL,     NULL,   PREC_NONE},
-        [TOKEN_TRUE]          = {NULL,     NULL,   PREC_NONE},
+        [TOKEN_TRUE]          = {literal,  NULL,   PREC_NONE},
         [TOKEN_VAR]           = {NULL,     NULL,   PREC_NONE},
         [TOKEN_WHILE]         = {NULL,     NULL,   PREC_NONE},
         [TOKEN_ERROR]         = {NULL,     NULL,   PREC_NONE},

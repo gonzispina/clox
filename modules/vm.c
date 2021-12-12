@@ -2,6 +2,7 @@
 // Created by gonzalo on 17/11/21.
 //
 
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -23,6 +24,23 @@ void push(Stack* stack, Value value) {
 Value pop(Stack* stack) {
     stack->top--;
     return *(stack->top);
+}
+
+Value peek(Stack* stack, int distance) {
+    return *(stack->top - distance);
+}
+
+static void runtimeError(VM* vm, const char* format, ...) {
+    va_list args;
+    va_start(args, format);
+    vfprintf(stderr, format, args);
+    va_end(args);
+    fputs("\n", stderr);
+
+    size_t instruction = vm->ip - vm->chunk->code - 1;
+    int line = vm->chunk->lines[instruction];
+    fprintf(stderr, "[line %d] in script\n", line);
+    resetStack(&vm->stack);
 }
 
 VM* initVM() {
@@ -57,6 +75,40 @@ static void printStack(Stack* stack) {
     printf("\n");
 }
 
+static bool validateNumbers(VM* vm, Value a, Value b) {
+    if (!IS_NUMBER(a) || !IS_NUMBER(b)) {
+        runtimeError(vm, "Operands must be a numbers.");
+        return false;
+    }
+    return true;
+}
+
+typedef void (*BinaryFn)(VM* vm, Value a, Value b);
+
+static void sumOp(VM* vm, Value a, Value b) {
+    push(&vm->stack, NUMBER_VAL(AS_NUMBER(a)+AS_NUMBER(b)));
+}
+
+static void substractOp(VM* vm, Value a, Value b) {
+    push(&vm->stack, NUMBER_VAL(AS_NUMBER(a)-AS_NUMBER(b)));
+}
+
+static void multiplyOp(VM* vm, Value a, Value b) {
+    push(&vm->stack, NUMBER_VAL(AS_NUMBER(a)*AS_NUMBER(b)));
+}
+
+static void divideOp(VM* vm, Value a, Value b) {
+    push(&vm->stack, NUMBER_VAL(AS_NUMBER(a)/AS_NUMBER(b)));
+}
+
+static bool binaryOp(VM* vm, ValueType type, BinaryFn op) {
+    Value b = pop(&vm->stack);
+    Value a = pop(&vm->stack);
+    if (type == VAL_NUMBER && !validateNumbers(vm, a, b)) return false;
+    op(vm, a, b);
+    return true;
+}
+
 static InterpretResult run(VM* vm) {
     for (;;) {
 #ifdef DEBUG_TRACE_EXECUTION
@@ -72,31 +124,21 @@ static InterpretResult run(VM* vm) {
                 printf("\n");
                 break;
             }
-            case OP_ADD: {
-                double b = pop(&vm->stack);
-                double a = pop(&vm->stack);
-                push(&vm->stack, a+b);
+            case OP_NIL: push(&vm->stack, NIL_VAL); break;
+            case OP_TRUE: push(&vm->stack, BOOL_VAL(true)); break;
+            case OP_FALSE: push(&vm->stack, BOOL_VAL(false)); break;
+            case OP_ADD: if (!binaryOp(vm, VAL_NUMBER, sumOp)) return INTERPRET_RUNTIME_ERROR; break;
+            case OP_SUBTRACT: if (!binaryOp(vm, VAL_NUMBER, substractOp)) return INTERPRET_RUNTIME_ERROR; break;
+            case OP_MULTIPLY: if (!binaryOp(vm, VAL_NUMBER, multiplyOp)) return INTERPRET_RUNTIME_ERROR; break;
+            case OP_DIVIDE: if (!binaryOp(vm, VAL_NUMBER, divideOp)) return INTERPRET_RUNTIME_ERROR; break;
+            case OP_NEGATE: {
+                if (!IS_NUMBER(peek(&vm->stack, 0))) {
+                    runtimeError(vm, "Operand must be a number.");
+                    return INTERPRET_RUNTIME_ERROR;
+                }
+                push(&vm->stack, NUMBER_VAL(-AS_NUMBER(pop(&vm->stack))));
                 break;
             }
-            case OP_SUBTRACT: {
-                double b = pop(&vm->stack);
-                double a = pop(&vm->stack);
-                push(&vm->stack, a-b);
-                break;
-            }
-            case OP_MULTIPLY: {
-                double b = pop(&vm->stack);
-                double a = pop(&vm->stack);
-                push(&vm->stack, a*b);
-                break;
-            }
-            case OP_DIVIDE: {
-                double b = pop(&vm->stack);
-                double a = pop(&vm->stack);
-                push(&vm->stack, a/b);
-                break;
-            }
-            case OP_NEGATE: push(&vm->stack, -pop(&vm->stack)); break;
             case OP_RETURN: {
                 printValue(pop(&vm->stack));
                 return INTERPRET_OK;
