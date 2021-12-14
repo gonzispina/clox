@@ -8,6 +8,7 @@
 #include "memory.h"
 #include "object.h"
 #include "value.h"
+#include "table.h"
 
 static Obj* allocateObj(Obj** prev, ObjType type, size_t size) {
     Obj* obj = (Obj*)reallocate(NULL, 0, size);
@@ -19,16 +20,18 @@ static Obj* allocateObj(Obj** prev, ObjType type, size_t size) {
     return obj;
 }
 
-ObjString* allocateString(Obj** prev, const char* chars, int length) {
+ObjString* allocateString(Obj** prev, const char* chars, int length, uint32_t hash) {
     ObjString* str = (ObjString*)allocateObj(prev, OBJ_STRING, sizeof (ObjString)+length+1);
     str->length = length;
     memcpy(str->chars, chars, length);
     str->chars[length] = '\0';
+    str->hash = hash;
     return str;
 }
 
 ObjString* copyString(const char* chars, int length) {
-    return allocateString(NULL, chars, length);
+    uint32_t hash = hashString(chars, length);
+    return allocateString(NULL, chars, length, hash);
 }
 
 void printObject(Value value) {

@@ -14,6 +14,7 @@
 #include "vm.h"
 #include "value.h"
 #include "compiler.h"
+#include "table.h"
 
 static void resetStack(Stack* stack) {
     stack->top = stack->values;
@@ -188,7 +189,7 @@ static InterpretResult run(VM* vm) {
                     memcpy(concat, strA->chars, strA->length);
                     memcpy(concat+strA->length, strB->chars, strB->length);
 
-                    push(&vm->stack, OBJ_VAL(allocateString(&vm->objects, concat, length)));
+                    push(&vm->stack, OBJ_VAL(allocateString(&vm->objects, concat, length, hashString(concat, length))));
                 } else if (IS_NUMBER(a) && IS_NUMBER(b)) {
                     push(&vm->stack, NUMBER_VAL(AS_NUMBER(a)+AS_NUMBER(b)));
                 } else {

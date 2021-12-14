@@ -27,11 +27,12 @@ struct Obj {
 struct ObjString {
     Obj obj;
     int length;
+    uint32_t hash;
     char chars[];
 };
 
 ObjString* copyString(const char* chars, int length);
-ObjString* allocateString(Obj** prev, const char* chars, int length);
+ObjString* allocateString(Obj** prev, const char* chars, int length, uint32_t hash);
 void printObject(Value value);
 
 static inline bool isObjType(Value value, ObjType type) {
