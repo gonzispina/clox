@@ -20,15 +20,6 @@ static uint32_t FNV1FHash(const char* text, int length) {
     return hash;
 }
 
-static uint32_t FNV1aFHash(const char* text, int length) {
-    uint32_t hash = FNV1_OFFSET_BASIS;
-    for (int i = 0; i < length; i++) {
-        hash ^= (uint8_t)text[i];
-        hash *= 16777619;
-    }
-    return hash;
-}
-
 uint32_t hashString(char* text, int length) {
     return FNV1FHash(text, length);
 }
