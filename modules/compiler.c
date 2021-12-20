@@ -129,6 +129,17 @@ static uint8_t makeConstant(Parser* p, Value v) {
     return (uint8_t)constant;
 }
 
+static uint8_t makeIdentifier(Parser* p, Value v) {
+    int constant = addIdentifier(currentChunk(), v);
+    if (constant > UINT8_MAX) {
+        error(p, "Too many constants in one chunk");
+        return 0;
+    }
+
+    return (uint8_t)constant;
+}
+
+
 static void emitConstant(Parser* p, Value v) {
     emitBytes(p, OP_CONSTANT, makeConstant(p, v));
 }
@@ -157,7 +168,7 @@ static void string(VM* vm, Parser* p, bool _) {
 }
 
 static uint8_t identifierConstant(VM* vm, Parser* p) {
-    return makeConstant(p, OBJ_VAL(copyString(vm, p->previous.start, p->previous.length)));
+    return makeIdentifier(p, OBJ_VAL(copyString(vm, p->previous.start, p->previous.length)));
 }
 
 static void namedVariable(VM* vm, Parser* p, bool canAssign) {
