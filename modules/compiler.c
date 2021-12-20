@@ -156,6 +156,19 @@ static void string(VM* vm, Parser* p) {
     emitConstant(p, OBJ_VAL(copyString(vm, p->previous.start + 1, p->previous.length - 2)));
 }
 
+static uint8_t identifierConstant(VM* vm, Parser* p) {
+    return makeConstant(p, OBJ_VAL(copyString(vm, p->previous.start, p->previous.length)));
+}
+
+static void namedVariable(VM* vm, Parser* p) {
+    uint8_t arg = identifierConstant(vm, p);
+    emitBytes(p, OP_GET_GLOBAL, arg);
+}
+
+static void variable(VM* vm, Parser* p) {
+    namedVariable(vm, p);
+}
+
 static void unary(VM* vm, Parser* p) {
     TokenType operatorType = p->previous.type;
 
@@ -214,7 +227,7 @@ ParseRule rules[] = {
         [TOKEN_GREATER_EQUAL] = {NULL,     binary,   PREC_COMPARISON},
         [TOKEN_LESS]          = {NULL,     binary,   PREC_COMPARISON},
         [TOKEN_LESS_EQUAL]    = {NULL,     binary,   PREC_COMPARISON},
-        [TOKEN_IDENTIFIER]    = {NULL,     NULL,   PREC_NONE},
+        [TOKEN_IDENTIFIER]    = {variable,     NULL,   PREC_NONE},
         [TOKEN_STRING]        = {string,     NULL,   PREC_NONE},
         [TOKEN_NUMBER]        = {number,   NULL,   PREC_NONE},
         [TOKEN_AND]           = {NULL,     NULL,   PREC_NONE},
@@ -281,10 +294,6 @@ static void statement(VM* vm, Parser* p) {
     }
 
     expressionStatement(vm, p);
-}
-
-static uint8_t identifierConstant(VM* vm, Parser* p) {
-    return makeConstant(p, OBJ_VAL(copyString(vm, p->previous.start, p->previous.length)));
 }
 
 static uint8_t parseVariable(VM* vm, Parser* p, const char* errorMessage) {

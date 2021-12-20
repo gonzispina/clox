@@ -18,7 +18,7 @@ typedef struct Stack {
     Value* top;
 } Stack;
 
-typedef struct {
+typedef struct VM {
     Chunk* chunk;
     uint8_t* ip; // Instruction pointer
     Stack stack;
