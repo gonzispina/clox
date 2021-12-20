@@ -158,8 +158,8 @@ static bool binaryOp(VM* vm, ValueType type, BinaryFn op) {
 static InterpretResult run(VM* vm) {
     for (;;) {
 #ifdef DEBUG_TRACE_EXECUTION
-    printStack(&vm->stack);
-    disassembleInstruction(vm->chunk, (int)(vm->ip - vm->chunk->code));
+    // printStack(&vm->stack);
+    // disassembleInstruction(vm->chunk, (int)(vm->ip - vm->chunk->code));
 #endif
         uint8_t instruction;
         switch (instruction = READ_BYTE(vm)) {
@@ -211,6 +211,7 @@ static InterpretResult run(VM* vm) {
             }
             case OP_RETURN: {
                 printValue(pop(&vm->stack));
+                printf("\n");
                 return INTERPRET_OK;
             }
         }
