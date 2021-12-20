@@ -65,6 +65,7 @@ VM* initVM() {
 
     resetStack(&vm->stack);
     initTable(&vm->strings);
+    initTable(&vm->globals);
     vm->objects = NULL;
     return vm;
 }
@@ -72,6 +73,7 @@ VM* initVM() {
 void freeVM(VM* vm) {
     freeObjects(vm->objects);
     freeTable(&vm->strings);
+    freeTable(&vm->globals);
     free(vm);
 }
 
@@ -209,9 +211,19 @@ static InterpretResult run(VM* vm) {
                 push(&vm->stack, NUMBER_VAL(-AS_NUMBER(pop(&vm->stack))));
                 break;
             }
-            case OP_RETURN: {
+            case OP_PRINT:
                 printValue(pop(&vm->stack));
                 printf("\n");
+                break;
+            case OP_POP:
+                pop(&vm->stack);
+                break;
+            case OP_DEFINE_GLOBAL: {
+                ObjString* global = AS_STRING(READ_CONSTANT(vm));
+                tableSet(&vm->globals, global, pop(&vm->stack));
+                break;
+            }
+            case OP_RETURN: {
                 return INTERPRET_OK;
             }
         }

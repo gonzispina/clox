@@ -4,6 +4,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "compiler.h"
 #include "scanner.h"
@@ -71,6 +72,38 @@ static void consume(Parser* p, TokenType type, const char* message) {
     }
 
     errorAtCurrent(p);
+}
+
+static bool match(Parser* p, TokenType type) {
+    if (p->current.type == type) {
+        advance(p);
+        return true;
+    }
+
+    return false;
+}
+
+static void synchronize(Parser* p) {
+    p->panicMode = false;
+
+    while (p->current.type != TOKEN_EOF) {
+        if (p->previous.type == TOKEN_SEMICOLON) return;
+        switch (p->current.type) {
+            case TOKEN_CLASS:
+            case TOKEN_FUN:
+            case TOKEN_VAR:
+            case TOKEN_FOR:
+            case TOKEN_IF:
+            case TOKEN_WHILE:
+            case TOKEN_PRINT:
+            case TOKEN_RETURN:
+                return;
+
+            default:; // Do nothing.
+        }
+
+        advance(p);
+    }
 }
 
 static Chunk* currentChunk() {
@@ -229,13 +262,69 @@ static void expression(VM* vm, Parser* p) {
     parsePrecedence(vm, p, PREC_ASSIGNMENT);
 }
 
+static void expressionStatement(VM* vm, Parser* p) {
+    expression(vm, p);
+    consume(p, TOKEN_SEMICOLON, "Expect ';' after value.");
+    emitByte(p, OP_POP);
+}
+
+static void printStatement(VM* vm, Parser* p) {
+    expression(vm, p);
+    consume(p, TOKEN_SEMICOLON, "Expect ';' after value.");
+    emitByte(p, OP_PRINT);
+}
+
+static void statement(VM* vm, Parser* p) {
+    if (match(p, TOKEN_PRINT)) {
+        printStatement(vm, p);
+        return;
+    }
+
+    expressionStatement(vm, p);
+}
+
+static uint8_t identifierConstant(VM* vm, Parser* p) {
+    return makeConstant(p, OBJ_VAL(copyString(vm, p->previous.start, p->previous.length)));
+}
+
+static uint8_t parseVariable(VM* vm, Parser* p, const char* errorMessage) {
+    consume(p, TOKEN_IDENTIFIER, errorMessage);
+    return identifierConstant(vm, p);
+}
+
+static void varDeclaration(VM* vm, Parser* p) {
+    uint8_t global = parseVariable(vm, p, "Expect variable name");
+
+    if (match(p, TOKEN_EQUAL)) {
+        expression(vm, p);
+    } else {
+        emitByte(p, OP_NIL);
+    }
+
+    consume(p, TOKEN_SEMICOLON, "Expect ';' after variable declaration.");
+    emitBytes(p, OP_DEFINE_GLOBAL, global);
+}
+
+static void declaration(VM* vm, Parser* p) {
+    if (match(p, TOKEN_VAR)) {
+        varDeclaration(vm, p);
+    } else {
+        statement(vm, p);
+    }
+
+    if (p->panicMode) synchronize(p);
+}
+
 bool compile(VM* vm, const char* source, Chunk* chunk) {
     s = initScanner(source);
     Parser* p = initParser();
     compilingChunk = chunk;
 
     advance(p);
-    expression(vm, p);
+    while (!match(p, TOKEN_EOF)) {
+        declaration(vm, p);
+    }
+
     consume(p, TOKEN_EOF, "Expect end of expression.");
     endCompiler(p);
 

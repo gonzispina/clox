@@ -13,7 +13,7 @@
 
 #define STACK_MAX 256
 
-typedef struct {
+typedef struct Stack {
     Value values[STACK_MAX];
     Value* top;
 } Stack;
@@ -24,6 +24,7 @@ typedef struct {
     Stack stack;
     Obj* objects;
     Table strings;
+    Table globals;
 } VM;
 
 void push(Stack* stack, Value value);

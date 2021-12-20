@@ -8,7 +8,7 @@
 #include "vm.h"
 #include "scanner.h"
 
-typedef struct {
+typedef struct Parser {
     Token current;
     Token previous;
     bool hadError;

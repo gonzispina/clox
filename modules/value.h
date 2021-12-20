@@ -15,7 +15,7 @@ typedef enum {
     VAL_OBJ,
 } ValueType;
 
-typedef struct {
+typedef struct Value {
     ValueType type;
     union {
         bool boolean;
