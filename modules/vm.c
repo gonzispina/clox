@@ -15,6 +15,7 @@
 #include "value.h"
 #include "compiler.h"
 #include "table.h"
+#include "strings.h"
 
 static void resetStack(Stack* stack) {
     stack->top = stack->values;
@@ -63,12 +64,14 @@ VM* initVM() {
     }
 
     resetStack(&vm->stack);
+    initTable(&vm->strings);
     vm->objects = NULL;
     return vm;
 }
 
 void freeVM(VM* vm) {
     freeObjects(vm->objects);
+    freeTable(&vm->strings);
     free(vm);
 }
 
@@ -109,12 +112,8 @@ static void equalOp(VM* vm, Value a, Value b) {
         case VAL_BOOL:   push(&vm->stack, BOOL_VAL(AS_BOOL(a) == AS_BOOL(b))); break;
         case VAL_NIL:    push(&vm->stack, BOOL_VAL(true)); break;
         case VAL_NUMBER: push(&vm->stack, BOOL_VAL(AS_NUMBER(a) == AS_NUMBER(b))); break;
-        case VAL_OBJ: {
-            ObjString* strA = AS_STRING(a);
-            ObjString* strB = AS_STRING(b);
-            push(&vm->stack, BOOL_VAL(strA->length == strB->length && memcmp(strA->chars, strB->chars, strA->length) == 0));
-        }
-        default:         false; // Unreachable.
+        case VAL_OBJ:    push(&vm->stack, BOOL_VAL(AS_OBJ(a) == AS_OBJ(b))); break;
+        default: return; // Unreachable.
     }
 }
 
@@ -189,7 +188,7 @@ static InterpretResult run(VM* vm) {
                     memcpy(concat, strA->chars, strA->length);
                     memcpy(concat+strA->length, strB->chars, strB->length);
 
-                    push(&vm->stack, OBJ_VAL(allocateString(&vm->objects, concat, length, hashString(concat, length))));
+                    push(&vm->stack, OBJ_VAL(takeString(vm, concat, length)));
                 } else if (IS_NUMBER(a) && IS_NUMBER(b)) {
                     push(&vm->stack, NUMBER_VAL(AS_NUMBER(a)+AS_NUMBER(b)));
                 } else {
@@ -222,7 +221,7 @@ InterpretResult interpret(VM* vm, const char* source) {
     Chunk chunk;
     initChunk(&chunk);
 
-    if (!compile(source, &chunk)) {
+    if (!compile(vm, source, &chunk)) {
         freeChunk(&chunk);
         return INTERPRET_COMPILE_ERROR;
     }

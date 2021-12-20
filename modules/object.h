@@ -31,8 +31,7 @@ struct ObjString {
     char chars[];
 };
 
-ObjString* copyString(const char* chars, int length);
-ObjString* allocateString(Obj** prev, const char* chars, int length, uint32_t hash);
+Obj* allocateObj(Obj* prev, ObjType type, size_t size);
 void printObject(Value value);
 
 static inline bool isObjType(Value value, ObjType type) {

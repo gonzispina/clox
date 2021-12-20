@@ -31,7 +31,7 @@ typedef enum {
     PREC_PRIMARY
 } Precedence;
 
-typedef void (*ParseFn)(Parser*);
+typedef void (*ParseFn)(VM*, Parser*);
 
 typedef struct {
     ParseFn prefix;
@@ -39,10 +39,10 @@ typedef struct {
     Precedence precedence;
 } ParseRule;
 
-bool compile(const char* source, Chunk* chunk);
+bool compile(VM*, const char* source, Chunk* chunk);
 
-static void parsePrecedence(Parser* p, Precedence precedence);
-static void expression(Parser* p);
-static ParseRule* getRule(TokenType type);
+static void parsePrecedence(VM*, Parser*, Precedence);
+static void expression(VM*, Parser*);
+static ParseRule* getRule(TokenType);
 
 #endif //CLOX_COMPILER_H

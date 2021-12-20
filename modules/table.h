@@ -32,5 +32,6 @@ bool tableSet(Table* t, ObjString* key, Value value);
 bool tableGet(Table* t, ObjString* key, Value* value);
 bool tableDelete(Table* t, ObjString* key);
 void tableCopy(Table* from, Table* to);
+ObjString* tableFindString(Table* table, const char* chars, int length, uint32_t hash);
 
 #endif //CLOX_TABLE_H

@@ -7,7 +7,8 @@
 
 #include "compiler.h"
 #include "scanner.h"
-#include "object.h"
+#include "vm.h"
+#include "strings.h"
 
 #ifdef DEBUG_PRINT_CODE
 #include "debug.h"
@@ -108,33 +109,33 @@ static void endCompiler(Parser* p) {
 #endif
 }
 
-static void grouping(Parser* p) {
-    expression(p);
+static void grouping(VM* vm, Parser* p) {
+    expression(vm, p);
     consume(p, TOKEN_RIGHT_PAREN, "Expect ')' after expression.");
 }
 
-static void number(Parser* p) {
+static void number(VM* _, Parser* p) {
     double value = strtod(p->previous.start, NULL);
     emitConstant(p, NUMBER_VAL(value));
 }
 
-static void string(Parser* p) {
-    emitConstant(p, OBJ_VAL(copyString(p->previous.start + 1, p->previous.length - 2)));
+static void string(VM* vm, Parser* p) {
+    emitConstant(p, OBJ_VAL(copyString(vm, p->previous.start + 1, p->previous.length - 2)));
 }
 
-static void unary(Parser* p) {
+static void unary(VM* vm, Parser* p) {
     TokenType operatorType = p->previous.type;
 
-    parsePrecedence(p, PREC_UNARY);
+    parsePrecedence(vm, p, PREC_UNARY);
 
     if (operatorType == TOKEN_MINUS)     emitByte(p, OP_NEGATE);
     else if (operatorType == TOKEN_BANG) emitByte(p, OP_NOT);
 }
 
-static void binary(Parser* p) {
+static void binary(VM* vm, Parser* p) {
     TokenType operatorType = p->previous.type;
     ParseRule* rule = getRule(operatorType);
-    parsePrecedence(p, (Precedence)rule->precedence + 1);
+    parsePrecedence(vm, p, (Precedence)rule->precedence + 1);
 
     switch (operatorType) {
         case TOKEN_PLUS: emitByte(p, OP_ADD); break;
@@ -151,7 +152,7 @@ static void binary(Parser* p) {
     }
 }
 
-static void literal(Parser* p) {
+static void literal(VM* _, Parser* p) {
     switch (p->previous.type) {
         case TOKEN_TRUE: emitByte(p, OP_TRUE); break;
         case TOKEN_FALSE: emitByte(p, OP_FALSE); break;
@@ -207,7 +208,7 @@ static ParseRule* getRule(TokenType type) {
     return &rules[type];
 }
 
-static void parsePrecedence(Parser* p, Precedence precedence) {
+static void parsePrecedence(VM* vm, Parser* p, Precedence precedence) {
     advance(p);
     ParseFn prefixRule = getRule(p->previous.type)->prefix;
     if (prefixRule == NULL) {
@@ -215,26 +216,26 @@ static void parsePrecedence(Parser* p, Precedence precedence) {
         return;
     }
 
-    prefixRule(p);
+    prefixRule(vm, p);
 
     while(precedence <= getRule(p->current.type)->precedence) {
         advance(p);
         ParseFn infixRule = getRule(p->previous.type)->infix;
-        infixRule(p);
+        infixRule(vm, p);
     }
 }
 
-static void expression(Parser* p) {
-    parsePrecedence(p, PREC_ASSIGNMENT);
+static void expression(VM* vm, Parser* p) {
+    parsePrecedence(vm, p, PREC_ASSIGNMENT);
 }
 
-bool compile(const char* source, Chunk* chunk) {
+bool compile(VM* vm, const char* source, Chunk* chunk) {
     s = initScanner(source);
     Parser* p = initParser();
     compilingChunk = chunk;
 
     advance(p);
-    expression(p);
+    expression(vm, p);
     consume(p, TOKEN_EOF, "Expect end of expression.");
     endCompiler(p);
 

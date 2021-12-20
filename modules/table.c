@@ -46,7 +46,7 @@ static Entry* findEntry(Entry* entries, int capacity, ObjString* key) {
         }
 
         // e->key == NULL
-        if (IS_NIL(e->value)) {
+        if (!IS_NIL(e->value)) {
             // If we've already found a tombstone, we must return it.
             return tombstone != NULL ? tombstone : e;
         }
@@ -91,7 +91,7 @@ bool tableSet(Table *t, ObjString *key, Value value) {
 
     Entry* entry = findEntry(t->entries, t->capacity, key);
     bool isNew = entry->key == NULL;
-    if (isNew && IS_NIL(entry->value)) t->count++;
+    if (isNew && !IS_NIL(entry->value)) t->count++;
 
     entry->key = key;
     entry->value = value;
@@ -115,7 +115,7 @@ bool tableDelete(Table *t, ObjString *key) {
     if (e->key == NULL) return false;
 
     e->key == NULL;
-    e->value = BOOL_VAL(true);
+    e->value = NIL_VAL;
     return true;
 }
 
@@ -125,6 +125,24 @@ void tableCopy(Table *from, Table *to) {
         if (entry->key != NULL) {
             tableSet(to, entry->key, entry->value);
         }
+    }
+}
+
+ObjString* tableFindString(Table* t, const char* chars, int length, uint32_t hash) {
+    if (t->count == 0) return NULL;
+
+    uint32_t index = (hash % t->capacity);
+    for (;;) {
+        Entry* entry = &t->entries[index];
+        if (entry->key == NULL) {
+            if (!IS_NIL(entry->value)) return NULL;
+        } else if (entry->key->length == length &&
+                   entry->key->hash == hash &&
+                   memcmp(entry->key->chars, chars, length) == 0) {
+            return entry->key;
+        }
+
+        index = (index + 1 % t->capacity);
     }
 }
 
