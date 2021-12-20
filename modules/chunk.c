@@ -13,14 +13,14 @@ void initChunk(Chunk* chunk) {
     chunk->capacity = 0;
     chunk->code = NULL;
     chunk->lines = NULL;
-    initTable(&chunk->globals);
+    initTable(&chunk->identifiers);
     initValueArray(&chunk->constants);
 }
 
 void freeChunk(Chunk* chunk) {
     FREE_ARRAY(uint8_t, chunk->code, chunk->capacity);
     FREE_ARRAY(int, chunk->lines, chunk->capacity);
-    freeTable(&chunk->globals);
+    freeTable(&chunk->identifiers);
     freeValueArray(&chunk->constants);
     initChunk(chunk);
 }
@@ -46,12 +46,12 @@ int addConstant(Chunk *chunk, Value value) {
 int addIdentifier(Chunk *chunk, Value name) {
     ObjString* key = AS_STRING(name);
     Value value;
-    if (tableGet(&chunk->globals, key, &value)) {
+    if (tableGet(&chunk->identifiers, key, &value)) {
         return (int)AS_NUMBER(value);
     }
 
     int ptr = addConstant(chunk, name);
-    tableSet(&chunk->globals, key, NUMBER_VAL(ptr));
+    tableSet(&chunk->identifiers, key, NUMBER_VAL(ptr));
 
     return ptr;
 }

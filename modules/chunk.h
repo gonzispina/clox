@@ -33,7 +33,7 @@ typedef struct  {
     uint8_t* code;
     int* lines;
     ValueArray constants;
-    Table globals;
+    Table identifiers;
 } Chunk;
 
 void initChunk(Chunk* chunk);
