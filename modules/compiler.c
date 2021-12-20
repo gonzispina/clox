@@ -142,17 +142,17 @@ static void endCompiler(Parser* p) {
 #endif
 }
 
-static void grouping(VM* vm, Parser* p) {
+static void grouping(VM* vm, Parser* p, bool _) {
     expression(vm, p);
     consume(p, TOKEN_RIGHT_PAREN, "Expect ')' after expression.");
 }
 
-static void number(VM* _, Parser* p) {
+static void number(VM* vm, Parser* p, bool _) {
     double value = strtod(p->previous.start, NULL);
     emitConstant(p, NUMBER_VAL(value));
 }
 
-static void string(VM* vm, Parser* p) {
+static void string(VM* vm, Parser* p, bool _) {
     emitConstant(p, OBJ_VAL(copyString(vm, p->previous.start + 1, p->previous.length - 2)));
 }
 
@@ -160,16 +160,23 @@ static uint8_t identifierConstant(VM* vm, Parser* p) {
     return makeConstant(p, OBJ_VAL(copyString(vm, p->previous.start, p->previous.length)));
 }
 
-static void namedVariable(VM* vm, Parser* p) {
+static void namedVariable(VM* vm, Parser* p, bool canAssign) {
     uint8_t arg = identifierConstant(vm, p);
-    emitBytes(p, OP_GET_GLOBAL, arg);
+
+    if (canAssign && match(p, TOKEN_EQUAL)) {
+        expression(vm, p);
+        emitBytes(p, OP_SET_GLOBAL, arg);
+    } else {
+        emitBytes(p, OP_GET_GLOBAL, arg);
+    }
+
 }
 
-static void variable(VM* vm, Parser* p) {
-    namedVariable(vm, p);
+static void variable(VM* vm, Parser* p, bool canAssign) {
+    namedVariable(vm, p, canAssign);
 }
 
-static void unary(VM* vm, Parser* p) {
+static void unary(VM* vm, Parser* p, bool _) {
     TokenType operatorType = p->previous.type;
 
     parsePrecedence(vm, p, PREC_UNARY);
@@ -178,7 +185,7 @@ static void unary(VM* vm, Parser* p) {
     else if (operatorType == TOKEN_BANG) emitByte(p, OP_NOT);
 }
 
-static void binary(VM* vm, Parser* p) {
+static void binary(VM* vm, Parser* p, bool _) {
     TokenType operatorType = p->previous.type;
     ParseRule* rule = getRule(operatorType);
     parsePrecedence(vm, p, (Precedence)rule->precedence + 1);
@@ -198,7 +205,7 @@ static void binary(VM* vm, Parser* p) {
     }
 }
 
-static void literal(VM* _, Parser* p) {
+static void literal(VM* vm, Parser* p, bool _) {
     switch (p->previous.type) {
         case TOKEN_TRUE: emitByte(p, OP_TRUE); break;
         case TOKEN_FALSE: emitByte(p, OP_FALSE); break;
@@ -262,12 +269,17 @@ static void parsePrecedence(VM* vm, Parser* p, Precedence precedence) {
         return;
     }
 
-    prefixRule(vm, p);
+    bool canAssign = precedence <= PREC_ASSIGNMENT;
+    prefixRule(vm, p, canAssign);
 
     while(precedence <= getRule(p->current.type)->precedence) {
         advance(p);
         ParseFn infixRule = getRule(p->previous.type)->infix;
-        infixRule(vm, p);
+        infixRule(vm, p, canAssign);
+    }
+
+    if (canAssign && match(p, TOKEN_EQUAL)) {
+        error(p, "Invalid assignment target.");
     }
 }
 

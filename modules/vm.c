@@ -32,7 +32,7 @@ Value pop(Stack* stack) {
 }
 
 Value peek(Stack* stack, int distance) {
-    return *(stack->top - distance);
+    return *(stack->top - distance - 1);
 }
 
 static void freeStack(Stack stack) {
@@ -168,8 +168,6 @@ static InterpretResult run(VM* vm) {
             case OP_CONSTANT: {
                 Value constant = READ_CONSTANT(vm);
                 push(&vm->stack, constant);
-                printValue(constant);
-                printf("\n");
                 break;
             }
             case OP_NIL: push(&vm->stack, NIL_VAL); break;
@@ -231,6 +229,15 @@ static InterpretResult run(VM* vm) {
                     return INTERPRET_RUNTIME_ERROR;
                 }
                 push(&vm->stack, value);
+                break;
+            }
+            case OP_SET_GLOBAL: {
+                ObjString* name = AS_STRING(READ_CONSTANT(vm));
+                if (tableSet(&vm->globals, name, peek(&vm->stack, 0))) {
+                    tableDelete(&vm->globals, name);
+                    runtimeError(vm, "Undefined variable '%s.", name->chars);
+                    return INTERPRET_RUNTIME_ERROR;
+                }
                 break;
             }
             case OP_RETURN: {
