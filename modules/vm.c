@@ -18,7 +18,7 @@
 #include "strings.h"
 
 static void resetStack(Stack* stack) {
-    stack->top = stack->values;
+    stack->top = &stack->values[0];
 }
 
 void push(Stack* stack, Value value) {
@@ -87,7 +87,7 @@ static Value READ_CONSTANT(VM* vm) {
 
 static void printStack(Stack* stack) {
     printf("          ");
-    for (Value* slot = stack->top; slot < stack->top; slot++) {
+    for (Value* slot = stack->values; slot < stack->top; slot++) {
         printf("[ ");
         printValue(*slot);
         printf(" ]");
@@ -157,10 +157,11 @@ static bool binaryOp(VM* vm, ValueType type, BinaryFn op) {
     return true;
 }
 
+// {var a = "a"; var b="b"; print(a + " " + b);}
 static InterpretResult run(VM* vm) {
     for (;;) {
 #ifdef DEBUG_TRACE_EXECUTION
-    // printStack(&vm->stack);
+    printStack(&vm->stack);
     // disassembleInstruction(vm->chunk, (int)(vm->ip - vm->chunk->code));
 #endif
         uint8_t instruction;
@@ -238,6 +239,16 @@ static InterpretResult run(VM* vm) {
                     runtimeError(vm, "Undefined variable '%s.", name->chars);
                     return INTERPRET_RUNTIME_ERROR;
                 }
+                break;
+            }
+            case OP_GET_LOCAL: {
+                uint8_t slot = READ_BYTE(vm);
+                push(&vm->stack, vm->stack.values[slot]);
+                break;
+            }
+            case OP_SET_LOCAL: {
+                uint8_t slot = READ_BYTE(vm);
+                vm->stack.values[slot] = peek(&vm->stack, 0);
                 break;
             }
             case OP_RETURN: {

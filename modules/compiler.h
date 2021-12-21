@@ -39,10 +39,23 @@ typedef struct {
     Precedence precedence;
 } ParseRule;
 
+typedef struct Local {
+    Token name;
+    int depth;
+} Local;
+
+typedef struct Compiler {
+    Local locals[UINT8_COUNT];
+    int localCount;
+    int scopeDepth;
+} Compiler;
+
 bool compile(VM*, const char* source, Chunk* chunk);
 
 static void parsePrecedence(VM*, Parser*, Precedence);
 static void expression(VM*, Parser*);
+static void statement(VM* vm, Parser* p);
+static void declaration(VM* vm, Parser* p);
 static ParseRule* getRule(TokenType);
 
 #endif //CLOX_COMPILER_H
