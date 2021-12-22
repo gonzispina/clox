@@ -74,6 +74,7 @@ int disassembleInstruction(Chunk *chunk, int offset) {
         case OP_GET_LOCAL:     return byteInstruction("OP_GET_LOCAL", chunk, offset);
         case OP_SET_LOCAL:     return byteInstruction("OP_SET_LOCAL", chunk, offset);
         case OP_JUMP_IF_FALSE: return byte16Instruction("OP_JUMP_IF_FALSE", chunk, offset);
+        case OP_JUMP: return byte16Instruction("OP_JUMP", chunk, offset);
         default:
             printf("Unknown opcode %d\n", instruction);
             return offset + 1;

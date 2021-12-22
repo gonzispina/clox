@@ -444,13 +444,17 @@ static void ifStatement(VM* vm, Parser* p) {
     consume(p, TOKEN_RIGHT_PAREN, "Expect ')' after condition.");
 
     beginScope();
-    int jump;
-    if (!match(p, TOKEN_LEFT_BRACE)) {
-        jump = emitJump(p, OP_JUMP_IF_FALSE);
-        statement(vm, p);
-    }
+    int thenJump = emitJump(p, OP_JUMP_IF_FALSE);
+    emitByte(p, OP_POP);
+    statement(vm, p);
 
-    patchJump(p, jump);
+    int elseJump = emitJump(p, OP_JUMP);
+    patchJump(p, thenJump);
+    emitByte(p, OP_POP);
+
+    if (match(p, TOKEN_ELSE)) statement(vm, p);
+    patchJump(p, elseJump);
+
     endScope(p);
 }
 

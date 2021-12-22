@@ -81,6 +81,12 @@ static uint8_t READ_BYTE(VM* vm) {
     return *vm->ip++;
 }
 
+static uint16_t READ_16_BYTE(VM* vm) {
+    uint8_t first = READ_BYTE(vm);
+    uint8_t second = READ_BYTE(vm);
+    return (uint16_t)((first << 8) | second);
+}
+
 static Value READ_CONSTANT(VM* vm) {
     return vm->chunk->constants.values[READ_BYTE(vm)];
 }
@@ -252,11 +258,13 @@ static InterpretResult run(VM* vm) {
                 break;
             }
             case OP_JUMP_IF_FALSE: {
-                uint8_t first = READ_BYTE(vm);
-                uint8_t second = READ_BYTE(vm);
-                uint16_t offset = (uint16_t)((first << 8) | second);
-                if (isFalsey(peek(&vm->stack, 0))) vm->ip += offset;
+                uint16_t offset = READ_16_BYTE(vm);
+                vm->ip += (uint16_t)isFalsey(peek(&vm->stack, 0)) * offset;
                 break;
+            }
+            case OP_JUMP: {
+                uint16_t offset = READ_16_BYTE(vm);
+                vm->ip += offset;
             }
             case OP_RETURN: {
                 return INTERPRET_OK;
