@@ -39,7 +39,7 @@ static void freeStack(Stack stack) {
 
 }
 
-static bool isFalsy(Value v) {
+static bool isFalsey(Value v) {
     return IS_NIL(v) || (IS_BOOL(v) && !AS_BOOL(v));
 }
 
@@ -201,7 +201,7 @@ static InterpretResult run(VM* vm) {
             case OP_SUBTRACT: if (!binaryOp(vm, VAL_NUMBER, substractOp)) return INTERPRET_RUNTIME_ERROR; break;
             case OP_MULTIPLY: if (!binaryOp(vm, VAL_NUMBER, multiplyOp)) return INTERPRET_RUNTIME_ERROR; break;
             case OP_DIVIDE: if (!binaryOp(vm, VAL_NUMBER, divideOp)) return INTERPRET_RUNTIME_ERROR; break;
-            case OP_NOT: push(&vm->stack, BOOL_VAL(isFalsy(pop(&vm->stack)))); break;
+            case OP_NOT: push(&vm->stack, BOOL_VAL(isFalsey(pop(&vm->stack)))); break;
             case OP_NEGATE: {
                 if (!IS_NUMBER(peek(&vm->stack, 0))) {
                     runtimeError(vm, "Operand must be a number.");
@@ -249,6 +249,13 @@ static InterpretResult run(VM* vm) {
             case OP_SET_LOCAL: {
                 uint8_t slot = READ_BYTE(vm);
                 vm->stack.values[slot] = peek(&vm->stack, 0);
+                break;
+            }
+            case OP_JUMP_IF_FALSE: {
+                uint8_t first = READ_BYTE(vm);
+                uint8_t second = READ_BYTE(vm);
+                uint16_t offset = (uint16_t)((first << 8) | second);
+                if (isFalsey(peek(&vm->stack, 0))) vm->ip += offset;
                 break;
             }
             case OP_RETURN: {

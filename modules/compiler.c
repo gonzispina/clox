@@ -155,6 +155,23 @@ static void emitConstant(Parser* p, Value v) {
     emitBytes(p, OP_CONSTANT, makeConstant(p, v));
 }
 
+static int emitJump(Parser* p, uint8_t instruction) {
+    emitByte(p, instruction);
+    // We are going to need 16bit instruction to handle jumps of 2¹⁶ bytes of code
+    emitByte(p, 0xff); emitByte(p, 0xff); // 255 because it is easy to use with bitwise operations
+    return currentChunk()->count - 2;
+}
+
+static void patchJump(Parser* p, int offset) {
+    int jump = currentChunk()->count - 2 - offset;
+    if (jump > UINT16_MAX) {
+        error(p, "Too much code to jump over.");
+    }
+
+    currentChunk()->code[offset] = (jump >> 8) & 0xff;
+    currentChunk()->code[offset + 1] = jump & 0xff;
+}
+
 static void beginScope() {
     c->scopeDepth++;
 }
@@ -232,8 +249,57 @@ static void namedVariable(VM* vm, Parser* p, bool canAssign) {
     } else {
         emitBytes(p, getOp, (uint8_t)arg);
     }
-
 }
+
+static void addLocal(Parser* p, Token name) {
+    if (c->localCount == UINT8_COUNT) {
+        error(p, "Too many local variables in function.");
+        return;
+    }
+
+    for (int i = c->localCount - 1; i >= 0; i--) {
+        Local* local = &c->locals[i];
+        if (local->depth != -1 && local->depth < c->scopeDepth) {
+            break;
+        }
+
+        if (identifiersEqual(&name, &local->name)) {
+            error(p, "Already a variable with this name in this scope.");
+        }
+    }
+
+    Local* local = &c->locals[c->localCount++];
+    local->name = name;
+    local->depth = -1;
+}
+
+static void declareVariable(Parser* p) {
+    if (c->scopeDepth == 0) return;
+    addLocal(p, p->previous);
+}
+
+static void markInitialized() {
+    c->locals[c->localCount - 1].depth = c->scopeDepth;
+}
+
+static void defineVariable(VM* vm, Parser* p, uint8_t var) {
+    if (c->scopeDepth > 0) {
+        markInitialized();
+        return;
+    }
+
+    emitBytes(p, OP_DEFINE_GLOBAL, var);
+}
+
+static uint8_t parseVariable(VM* vm, Parser* p, const char* errorMessage) {
+    consume(p, TOKEN_IDENTIFIER, errorMessage);
+
+    declareVariable(p);
+    if (c->scopeDepth > 0) return 0;
+
+    return identifierConstant(vm, p);
+}
+
 
 static void variable(VM* vm, Parser* p, bool canAssign) {
     namedVariable(vm, p, canAssign);
@@ -372,9 +438,28 @@ static void printStatement(VM* vm, Parser* p) {
     emitByte(p, OP_PRINT);
 }
 
+static void ifStatement(VM* vm, Parser* p) {
+    consume(p, TOKEN_LEFT_PAREN, "Expect '(' after 'if'.");
+    expression(vm, p);
+    consume(p, TOKEN_RIGHT_PAREN, "Expect ')' after condition.");
+
+    beginScope();
+    int jump;
+    if (!match(p, TOKEN_LEFT_BRACE)) {
+        jump = emitJump(p, OP_JUMP_IF_FALSE);
+        statement(vm, p);
+    }
+
+    patchJump(p, jump);
+    endScope(p);
+}
+
 void statement(VM* vm, Parser* p) {
     if (match(p, TOKEN_PRINT)) {
         printStatement(vm, p);
+        return;
+    } else if (match(p, TOKEN_IF)) {
+        ifStatement(vm, p);
         return;
     } else if (match(p, TOKEN_LEFT_BRACE)) {
         blockStatement(vm, p);
@@ -382,55 +467,6 @@ void statement(VM* vm, Parser* p) {
     }
 
     expressionStatement(vm, p);
-}
-
-static void addLocal(Parser* p, Token name) {
-    if (c->localCount == UINT8_COUNT) {
-        error(p, "Too many local variables in function.");
-        return;
-    }
-
-    for (int i = c->localCount - 1; i >= 0; i--) {
-        Local* local = &c->locals[i];
-        if (local->depth != -1 && local->depth < c->scopeDepth) {
-            break;
-        }
-
-        if (identifiersEqual(&name, &local->name)) {
-            error(p, "Already a variable with this name in this scope.");
-        }
-    }
-
-    Local* local = &c->locals[c->localCount++];
-    local->name = name;
-    local->depth = -1;
-}
-
-static void declareVariable(Parser* p) {
-    if (c->scopeDepth == 0) return;
-    addLocal(p, p->previous);
-}
-
-static void markInitialized() {
-    c->locals[c->localCount - 1].depth = c->scopeDepth;
-}
-
-static void defineVariable(VM* vm, Parser* p, uint8_t var) {
-    if (c->scopeDepth > 0) {
-        markInitialized();
-        return;
-    }
-
-    emitBytes(p, OP_DEFINE_GLOBAL, var);
-}
-
-static uint8_t parseVariable(VM* vm, Parser* p, const char* errorMessage) {
-    consume(p, TOKEN_IDENTIFIER, errorMessage);
-
-    declareVariable(p);
-    if (c->scopeDepth > 0) return 0;
-
-    return identifierConstant(vm, p);
 }
 
 static void varDeclaration(VM* vm, Parser* p) {
