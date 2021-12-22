@@ -130,6 +130,16 @@ static void emitBytes(Parser* p, uint8_t byte1, uint8_t byte2) {
     emitByte(p, byte2);
 }
 
+static void emitLoop(Parser* p, int loopStart) {
+    emitByte(p, OP_LOOP);
+
+    int offset = currentChunk()->count - loopStart + 2;
+    if (offset > UINT16_MAX) error(p, "Loop body too large.");
+
+    emitByte(p, (offset >> 8) & 0xff);
+    emitByte(p, offset & 0xff);
+}
+
 static uint8_t makeConstant(Parser* p, Value v) {
     int constant = addConstant(currentChunk(), v);
     if (constant > UINT8_MAX) {
@@ -476,12 +486,31 @@ static void ifStatement(VM* vm, Parser* p) {
     endScope(p);
 }
 
+static void whileStatement(VM* vm, Parser* p) {
+    int loopStart = currentChunk()->count;
+
+    consume(p, TOKEN_LEFT_PAREN, "Expect '(' after 'if'.");
+    expression(vm, p);
+    consume(p, TOKEN_RIGHT_PAREN, "Expect ')' after condition.");
+
+    int exitJump = emitJump(p, OP_JUMP_IF_FALSE);
+    emitByte(p, OP_POP);
+    statement(vm, p);
+    emitLoop(p, loopStart);
+
+    patchJump(p, exitJump);
+    emitByte(p, OP_POP);
+}
+
 void statement(VM* vm, Parser* p) {
     if (match(p, TOKEN_PRINT)) {
         printStatement(vm, p);
         return;
     } else if (match(p, TOKEN_IF)) {
         ifStatement(vm, p);
+        return;
+    } else if (match(p, TOKEN_WHILE)) {
+        whileStatement(vm, p);
         return;
     } else if (match(p, TOKEN_LEFT_BRACE)) {
         blockStatement(vm, p);

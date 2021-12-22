@@ -265,6 +265,12 @@ static InterpretResult run(VM* vm) {
             case OP_JUMP: {
                 uint16_t offset = READ_16_BYTE(vm);
                 vm->ip += offset;
+                break;
+            }
+            case OP_LOOP: {
+                uint16_t offset = READ_16_BYTE(vm);
+                vm->ip -= offset;
+                break;
             }
             case OP_RETURN: {
                 return INTERPRET_OK;
