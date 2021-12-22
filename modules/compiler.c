@@ -343,6 +343,24 @@ static void literal(VM* vm, Parser* p, bool _) {
     };
 }
 
+static void and_(VM* vm, Parser* p, bool _) {
+    int jump = emitJump(p, OP_JUMP_IF_FALSE);
+    emitByte(p, OP_POP);
+    parsePrecedence(vm, p, PREC_AND);
+    patchJump(p, jump);
+}
+
+static void or_(VM* vm, Parser* p, bool _) {
+    int elseJump = emitJump(p, OP_JUMP_IF_FALSE);
+    int thenJump = emitJump(p, OP_JUMP);
+
+    emitByte(p, OP_POP);
+    patchJump(p, elseJump);
+
+    parsePrecedence(vm, p, PREC_OR);
+    patchJump(p, thenJump);
+}
+
 ParseRule rules[] = {
         [TOKEN_LEFT_PAREN]    = {grouping, NULL,   PREC_NONE},
         [TOKEN_RIGHT_PAREN]   = {NULL,     NULL,   PREC_NONE},
@@ -366,7 +384,7 @@ ParseRule rules[] = {
         [TOKEN_IDENTIFIER]    = {variable,     NULL,   PREC_NONE},
         [TOKEN_STRING]        = {string,     NULL,   PREC_NONE},
         [TOKEN_NUMBER]        = {number,   NULL,   PREC_NONE},
-        [TOKEN_AND]           = {NULL,     NULL,   PREC_NONE},
+        [TOKEN_AND]           = {NULL,     and_,   PREC_AND},
         [TOKEN_CLASS]         = {NULL,     NULL,   PREC_NONE},
         [TOKEN_ELSE]          = {NULL,     NULL,   PREC_NONE},
         [TOKEN_FALSE]         = {literal,  NULL,   PREC_NONE},
@@ -374,7 +392,7 @@ ParseRule rules[] = {
         [TOKEN_FUN]           = {NULL,     NULL,   PREC_NONE},
         [TOKEN_IF]            = {NULL,     NULL,   PREC_NONE},
         [TOKEN_NIL]           = {literal,  NULL,   PREC_NONE},
-        [TOKEN_OR]            = {NULL,     NULL,   PREC_NONE},
+        [TOKEN_OR]            = {NULL,     or_,   PREC_OR},
         [TOKEN_PRINT]         = {NULL,     NULL,   PREC_NONE},
         [TOKEN_RETURN]        = {NULL,     NULL,   PREC_NONE},
         [TOKEN_SUPER]         = {NULL,     NULL,   PREC_NONE},
