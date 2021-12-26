@@ -502,24 +502,6 @@ static void whileStatement(VM* vm, Parser* p) {
     emitByte(p, OP_POP);
 }
 
-void statement(VM* vm, Parser* p) {
-    if (match(p, TOKEN_PRINT)) {
-        printStatement(vm, p);
-        return;
-    } else if (match(p, TOKEN_IF)) {
-        ifStatement(vm, p);
-        return;
-    } else if (match(p, TOKEN_WHILE)) {
-        whileStatement(vm, p);
-        return;
-    } else if (match(p, TOKEN_LEFT_BRACE)) {
-        blockStatement(vm, p);
-        return;
-    }
-
-    expressionStatement(vm, p);
-}
-
 static void varDeclaration(VM* vm, Parser* p) {
     uint8_t name = parseVariable(vm, p, "Expect variable name");
 
@@ -531,6 +513,76 @@ static void varDeclaration(VM* vm, Parser* p) {
 
     consume(p, TOKEN_SEMICOLON, "Expect ';' after variable declaration.");
     defineVariable(vm, p, name);
+}
+
+static void forStatement(VM* vm, Parser* p) {
+    beginScope();
+
+    consume(p, TOKEN_LEFT_PAREN, "Expect '(' after 'for'.");
+    if (match(p, TOKEN_SEMICOLON)) {
+        // No initializer.
+    } else if (match(p, TOKEN_VAR)) {
+        varDeclaration(vm, p);
+    } else {
+        expressionStatement(vm, p);
+    }
+
+    consume(p, TOKEN_SEMICOLON, "Expect ';'.");
+
+    int loopStart = currentChunk()->count;
+    int exitJump = -1;
+    if (!match(p, TOKEN_SEMICOLON)) {
+        expression(vm, p);
+        consume(p, TOKEN_SEMICOLON, "Expect ';' after loop condition.");
+
+        // Jump out of the loop if the condition is false.
+        exitJump = emitJump(p, OP_JUMP_IF_FALSE);
+        emitByte(p, OP_POP); // Condition.
+    }
+    
+    if (!match(p, TOKEN_RIGHT_PAREN)) {
+        int bodyJump = emitJump(p, OP_JUMP);
+        int incrementStart = currentChunk()->count;
+        expression(vm, p);
+        emitByte(p, OP_POP);
+        consume(p, TOKEN_RIGHT_PAREN, "Expect ')' after for clauses.");
+
+        emitLoop(p, loopStart);
+        loopStart = incrementStart;
+        patchJump(p, bodyJump);
+    }
+
+
+    statement(vm, p);
+    emitLoop(p, loopStart);
+    if (exitJump != -1) {
+        patchJump(p, exitJump);
+        emitByte(p, OP_POP); // Condition.
+    }
+
+
+    endScope(p);
+}
+
+void statement(VM* vm, Parser* p) {
+    if (match(p, TOKEN_PRINT)) {
+        printStatement(vm, p);
+        return;
+    } else if (match(p, TOKEN_IF)) {
+        ifStatement(vm, p);
+        return;
+    } else if (match(p, TOKEN_WHILE)) {
+        whileStatement(vm, p);
+        return;
+    } else if (match(p, TOKEN_FOR)) {
+        forStatement(vm, p);
+        return;
+    } else if (match(p, TOKEN_LEFT_BRACE)) {
+        blockStatement(vm, p);
+        return;
+    }
+
+    expressionStatement(vm, p);
 }
 
 static void declaration(VM* vm, Parser* p) {
