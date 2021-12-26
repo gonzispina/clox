@@ -35,12 +35,12 @@ struct ObjString {
     char chars[];
 };
 
-typedef struct ObjFunction {
+struct ObjFunction {
     Obj obj;
     int arity;
     Chunk chunk;
     ObjString* name;
-} ObjFunction;
+};
 
 Obj* allocateObj(Obj* prev, ObjType type, size_t size);
 void printObject(Value value);

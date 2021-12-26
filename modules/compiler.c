@@ -29,10 +29,19 @@ Parser *initParser() {
     return p;
 }
 
-static void initCompiler(Compiler* compiler) {
+static void initCompiler(Compiler* compiler, FunctionType type) {
+    compiler->function = NULL;
+    compiler->type = type;
+
     compiler->localCount = 0;
     compiler->scopeDepth = 0;
+    compiler->function = newFunction();
     c = compiler;
+
+    Local* local = &c->locals[c->localCount++];
+    local->depth = 0;
+    local->name.start = "";
+    local->name.length = 0;
 }
 
 static void errorAt(Parser* p, Token* token, const char* message) {
@@ -118,7 +127,7 @@ static void synchronize(Parser* p) {
 }
 
 static Chunk* currentChunk() {
-    return compilingChunk;
+    return &c->function->chunk;
 }
 
 static void emitByte(Parser* p, uint8_t byte) {
@@ -196,13 +205,17 @@ static void endScope(Parser* p) {
     }
 }
 
-static void endCompiler(Parser* p) {
+static ObjFunction* endCompiler(Parser* p) {
     emitByte(p, OP_RETURN);
+    ObjFunction* function = c->function;
+
 #ifdef DEBUG_PRINT_CODE
     if (!p->hadError) {
-        disassembleChunk(currentChunk(), "code");
+        disassembleChunk(currentChunk(), function->name != NULL ? function->name->chars : "<script>");
     }
 #endif
+
+    return function;
 }
 
 static void grouping(VM* vm, Parser* p, bool _) {
@@ -595,12 +608,12 @@ static void declaration(VM* vm, Parser* p) {
     if (p->panicMode) synchronize(p);
 }
 
-bool compile(VM* vm, const char* source, Chunk* chunk) {
+ObjFunction* compile(VM* vm, const char* source) {
     s = initScanner(source);
     Parser* p = initParser();
     Compiler compiler;
-    initCompiler(&compiler);
-    compilingChunk = chunk;
+    initCompiler(&compiler, TYPE_SCRIPT);
+    compilingChunk = &compiler.function->chunk;
 
     advance(p);
     while (!match(p, TOKEN_EOF)) {
@@ -608,14 +621,14 @@ bool compile(VM* vm, const char* source, Chunk* chunk) {
     }
 
     consume(p, TOKEN_EOF, "Expect end of expression.");
-    endCompiler(p);
 
     bool compiled = !p->hadError;
+    ObjFunction* function = endCompiler(p);
 
     free(p);
     free(s);
 
-    return compiled;
+    return (compiled) ? function : NULL;
 }
 
 

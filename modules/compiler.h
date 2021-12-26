@@ -44,13 +44,21 @@ typedef struct Local {
     int depth;
 } Local;
 
+typedef enum {
+    TYPE_FUNCTION,
+    TYPE_SCRIPT
+} FunctionType;
+
 typedef struct Compiler {
+    ObjFunction* function;
+    FunctionType type;
+
     Local locals[UINT8_COUNT];
     int localCount;
     int scopeDepth;
 } Compiler;
 
-bool compile(VM*, const char* source, Chunk* chunk);
+ObjFunction* compile(VM*, const char* source);
 
 static void parsePrecedence(VM*, Parser*, Precedence);
 static void expression(VM*, Parser*);
