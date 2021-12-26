@@ -21,8 +21,22 @@ Obj* allocateObj(Obj* prev, ObjType type, size_t size) {
     return obj;
 }
 
+static void printFunction(ObjFunction* function) {
+    if (function->name != NULL) printf("<fn %s>", function->name->chars);
+    else printf("<fn>");
+}
+
 void printObject(Value value) {
     switch (OBJ_TYPE(value)) {
         case OBJ_STRING: printf("%s", AS_CSTRING(value)); break;
+        case OBJ_FUNCTION: printFunction(AS_FUNCTION(value)); break;
     }
+}
+
+ObjFunction *newFunction() {
+    ObjFunction* function = (ObjFunction*)allocateObj(NULL, OBJ_FUNCTION, sizeof(ObjFunction));
+    function->arity = 0;
+    function->name = NULL;
+    initChunk(&function->chunk);
+    return function;
 }
